@@ -1,9 +1,12 @@
 # Driver script for testing ProofGenerator
 
+# lib
 import sympy
 from sympy.parsing.sympy_parser import parse_expr
 import argparse
+from collections import Counter
 
+# src
 from src.NodeHandler import NodeHandler
 
 # Quick POC for simple graph style search
@@ -17,17 +20,16 @@ def main( ) :
 
 	# Parse into left and right expressions
 	sGivenLeft, sGivenRight = args['given'].split( '=' )
-	givenLeft = parse_expr( sGivenLeft )
-	givenRight = parse_expr( sGivenRight )
+	givenLeft = parse_expr( sGivenLeft, evaluate=False )
+	givenRight = parse_expr( sGivenRight, evaluate=False )
 
 	sProveLeft, sProveRight = args['prove'].split( '=' )
-	proveLeft = parse_expr( sProveLeft )
-	proveRight = parse_expr( sProveRight )
+	proveLeft = parse_expr( sProveLeft, evaluate=False )
+	proveRight = parse_expr( sProveRight, evaluate=False )
 
 	symbolsOrig = givenLeft.free_symbols | givenRight.free_symbols | proveLeft.free_symbols | proveRight.free_symbols
 
 	print symbolsOrig
-
 
 	symbols = []
 	symbols.extend( symbolsOrig )
@@ -37,13 +39,12 @@ def main( ) :
 
 	print symbols
 
-
 	# Testing cost function
+	print Cost( givenLeft, givenRight, proveLeft, proveRight )
 
-
+	return
 
 	#  Do search
-
 	maxDepth = 1000
 
 	handler = NodeHandler( )
@@ -68,8 +69,43 @@ def main( ) :
 	print('Expanded nodes: ' + str( k ))
 
 # Need some distance metric to implement a priority queue
-def Cost( ) :
-	return 0
+def Cost( aLeft, aRight, bLeft, bRight ) :
+	aLeftTokens = Tokenize( aLeft )
+	aRightTokens = Tokenize( aRight )
+	bLeftTokens = Tokenize( bLeft )
+	bRightTokens = Tokenize( bRight )
+
+	aLeftCounter = Counter( aLeftTokens )
+	aRightCounter = Counter( aRightTokens )
+	bLeftCounter = Counter( bLeftTokens )
+	bRightCounter = Counter( bRightTokens )
+
+	# compare left vs left, right vs right
+	cost1 = (sum( (aLeftCounter - bLeftCounter).values( ) ) + sum( (bLeftCounter - aLeftCounter).values( ) )
+			 + sum( (aRightCounter - bRightCounter).values( ) ) + sum( (bRightCounter - aRightCounter).values( ) ))
+
+	# compare left vs right
+	cost2 = (sum( (aLeftCounter - bRightCounter).values( ) ) + sum( (bRightCounter - aLeftCounter).values( ) )
+			 + sum( (aRightCounter - bLeftCounter).values( ) ) + sum( (bLeftCounter - aRightCounter).values( ) ))
+
+	# return min as cost
+	return min( [cost1, cost2] )
+
+def Tokenize( expr ) :
+	tokens = []
+	# Add solo term
+	if len( expr.args ) == 0 :
+		tokens.append( str( expr ) )
+	# Add func if only modifier
+	if len( expr.args ) == 1 :
+		tokens.append( str( expr.func ) )
+	# Recursively traverse expressions
+	for a in expr.args :
+		if a.args :
+			tokens.extend( Tokenize( a ) )
+		else :
+			tokens.append( str( a ) )
+	return tokens
 
 # Command Line Arguments
 def ParseArguments( ) :
