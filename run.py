@@ -3,6 +3,7 @@
 # lib
 import sympy
 from sympy.parsing.sympy_parser import parse_expr
+from sympy.core.power import Pow
 import argparse
 from collections import Counter
 
@@ -40,36 +41,43 @@ def main( ) :
 	print symbols
 
 	# Testing cost function
-	print Cost( givenLeft, givenRight, proveLeft, proveRight )
+	tempDist = Distance( givenLeft, givenRight, proveLeft, proveRight )
 
-	return
+	# return
 
 	#  Do search
 	maxDepth = 1000
 
 	handler = NodeHandler( )
-	handler.Add( givenLeft, givenRight )
+	handler.Add( givenLeft, givenRight, tempDist )
 
 	k = 0
 	while k < maxDepth and handler :
-		tempL, tempR = handler.Pop( )
+		currL, currR, currDist = handler.Pop( )
 		k += 1
-		print tempL, ' = ', tempR
-		if (tempL == proveLeft and tempR == proveRight) or (tempL == proveRight and tempR == proveLeft) :
+		print currL, ' = ', currR, '... Estim. Dist: ', currDist
+		if (currL == proveLeft and currR == proveRight) or (currL == proveRight and currR == proveLeft) :
 			break
 		# Add simplified and expanded to queue (partial variations of these?)
-		handler.Add( sympy.simplify( tempL ), sympy.simplify( tempR ) )
-		handler.Add( sympy.expand( tempL ), sympy.expand( tempR ) )
+		tempL, tempR = sympy.simplify( currL ), sympy.simplify( currR )
+		tempDist = Distance( tempL, tempR, proveLeft, proveRight )
+		handler.Add( tempL, tempR, tempDist )
+
+		tempL, tempR = sympy.expand( currL ), sympy.expand( currR )
+		tempDist = Distance( tempL, tempR, proveLeft, proveRight )
+		handler.Add( tempL, tempR, tempDist )
 
 		# iterate through operators
 		for op in operators :
 			for sym in symbols :
-				handler.Add( op( tempL, sym ), op( tempR, sym ) )
+				tempL, tempR = op( currL, sym ), op( currR, sym )
+				tempDist = Distance( tempL, tempR, proveLeft, proveRight )
+				handler.Add( tempL, tempR, tempDist )
 
 	print('Expanded nodes: ' + str( k ))
 
 # Need some distance metric to implement a priority queue
-def Cost( aLeft, aRight, bLeft, bRight ) :
+def Distance( aLeft, aRight, bLeft, bRight ) :
 	aLeftTokens = Tokenize( aLeft )
 	aRightTokens = Tokenize( aRight )
 	bLeftTokens = Tokenize( bLeft )
@@ -80,27 +88,40 @@ def Cost( aLeft, aRight, bLeft, bRight ) :
 	bLeftCounter = Counter( bLeftTokens )
 	bRightCounter = Counter( bRightTokens )
 
+	aMaxCoeff = max(
+		[float( x ) for x in aLeftCounter.elements( ) and aRightCounter.elements( ) if x.isdigit( )] or [1] )
+	bMaxCoeff = max(
+		[float( x ) for x in bLeftCounter.elements( ) and bRightCounter.elements( ) if x.isdigit( )] or [1] )
+
 	# compare left vs left, right vs right
-	cost1 = (sum( (aLeftCounter - bLeftCounter).values( ) ) + sum( (bLeftCounter - aLeftCounter).values( ) )
+	dist1 = (sum( (aLeftCounter - bLeftCounter).values( ) ) + sum( (bLeftCounter - aLeftCounter).values( ) )
 			 + sum( (aRightCounter - bRightCounter).values( ) ) + sum( (bRightCounter - aRightCounter).values( ) ))
 
 	# compare left vs right
-	cost2 = (sum( (aLeftCounter - bRightCounter).values( ) ) + sum( (bRightCounter - aLeftCounter).values( ) )
+	dist2 = (sum( (aLeftCounter - bRightCounter).values( ) ) + sum( (bRightCounter - aLeftCounter).values( ) )
 			 + sum( (aRightCounter - bLeftCounter).values( ) ) + sum( (bLeftCounter - aRightCounter).values( ) ))
 
-	# return min as cost
-	return min( [cost1, cost2] )
+	# return min distance
+	return min( [dist1, dist2] ) + abs( aMaxCoeff - bMaxCoeff )
 
 def Tokenize( expr ) :
 	tokens = []
+	args = []  # want this to be mutable for pow expansion
+	args.extend( expr.args )
+
 	# Add solo term
-	if len( expr.args ) == 0 :
+	if len( args ) == 0 :
 		tokens.append( str( expr ) )
 	# Add func if only modifier
-	if len( expr.args ) == 1 :
+	elif len( args ) == 1 :
 		tokens.append( str( expr.func ) )
+	# Append terms to decompose power
+	elif expr.func == Pow and args[1] > 0 :
+		# print 'Power!', expr, expr.func, args[0], args[1]
+		args.extend( [args[0] for i in range( args[1] )] )
+
 	# Recursively traverse expressions
-	for a in expr.args :
+	for a in args :
 		if a.args :
 			tokens.extend( Tokenize( a ) )
 		else :
@@ -112,7 +133,7 @@ def ParseArguments( ) :
 	# Define arguments
 	parser = argparse.ArgumentParser( )
 	parser.add_argument( '-g', '--given', help='Given or starting statement',
-						 default='sin(x)/cos(x) + cos(x)/sin(x) = y/( cos(x) + sin(x) )' )
+						 default='sin(x)/cos(x) + cos(x)/sin(x) = y/( cos(x) * sin(x) )' )
 	parser.add_argument( '-p', '--prove', help='Statement to prove',
 						 default='1 = y' )
 
