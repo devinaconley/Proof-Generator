@@ -14,24 +14,23 @@ class ProofGenerator :
 		self.operators = [sympy.Mul, sympy.Add]  # , sympy.Pow]
 		self.modifiers = [sympy.sin, sympy.cos, sympy.exp]
 
-		print 'Proof Generator initialized...'
-		print 'Given: ', given
-		print 'Prove: ', prove
+		print( 'Proof Generator initialized...' )
 
 		# Parse into left and right expressions
 		sGivenLeft, sGivenRight = given.split( '=' )
 		self.givenLeft = parse_expr( sGivenLeft, evaluate=False )
 		self.givenRight = parse_expr( sGivenRight, evaluate=False )
+		print( 'Given: ', self.givenLeft, ' = ', self.givenRight )
 
 		sProveLeft, sProveRight = prove.split( '=' )
 		self.proveLeft = parse_expr( sProveLeft, evaluate=False )
 		self.proveRight = parse_expr( sProveRight, evaluate=False )
+		print( 'Prove: ', self.proveLeft, ' = ', self.proveRight )
+
 
 		# Setup full set of possible symbols
 		symbolsOrig = (self.givenLeft.free_symbols | self.givenRight.free_symbols
 					   | self.proveLeft.free_symbols | self.proveRight.free_symbols)
-
-		print symbolsOrig
 
 		self.symbols = []
 		self.symbols.extend( symbolsOrig )
@@ -39,40 +38,54 @@ class ProofGenerator :
 			for s in symbolsOrig :
 				self.symbols.append( m( s ) )
 
-		print self.symbols
-
 		# Setup node handler
 		self.handler = NodeHandler( )
 		tempDist = self.Distance( self.givenLeft, self.givenRight, self.proveLeft, self.proveRight )
-		self.handler.Add( self.givenLeft, self.givenRight, tempDist )
+		self.handler.Add( self.givenLeft, self.givenRight, tempDist, [] )
 
 	# Do search
 	def Run( self, maxDepth=1000 ) :
 		k = 0
 		while k < maxDepth and self.handler :
-			currL, currR, currDist = self.handler.Pop( )
+			currL, currR, currDist, oldPath = self.handler.Pop( )
+			if not oldPath :
+				path = []
+			else :
+				path = oldPath[:]
+			path.append( (currL, currR) )
+
 			k += 1
-			print currL, ' = ', currR, '... Estim. Dist: ', currDist
+			print( '\rNodes expanded: {} ==> {} = {}'.format( k, str( currL ), str( currR ) ), end='' )
+			# print currL ' = ', currR, '... Estim. Dist: ', currDist, '\r',
 			if ((currL == self.proveLeft and currR == self.proveRight)
 				or (currL == self.proveRight and currR == self.proveLeft)) :
+				print( )
+				self.PrintPath( path )
 				break
 			# Add simplified and expanded to queue (partial variations of these?)
 			tempL, tempR = sympy.simplify( currL ), sympy.simplify( currR )
 			tempDist = self.Distance( tempL, tempR, self.proveLeft, self.proveRight )
-			self.handler.Add( tempL, tempR, tempDist )
+			self.handler.Add( tempL, tempR, tempDist, path )
 
 			tempL, tempR = sympy.expand( currL ), sympy.expand( currR )
 			tempDist = self.Distance( tempL, tempR, self.proveLeft, self.proveRight )
-			self.handler.Add( tempL, tempR, tempDist )
+			self.handler.Add( tempL, tempR, tempDist, path )
 
 			# iterate through operators
 			for op in self.operators :
 				for sym in self.symbols :
 					tempL, tempR = op( currL, sym ), op( currR, sym )
 					tempDist = self.Distance( tempL, tempR, self.proveLeft, self.proveRight )
-					self.handler.Add( tempL, tempR, tempDist )
+					self.handler.Add( tempL, tempR, tempDist, path )
 
-		print('Expanded nodes: ' + str( k ))
+
+	def PrintPath( self, path ) :
+		print( '******************************************************')
+		print( 'PROOF: ')
+		while ( path ) :
+			temp = path.pop(0)
+			print( '\t', temp[0], ' = ', temp[1] )
+		print( '******************************************************')
 
 	# Need some distance metric to implement a priority queue
 	def Distance( self, aLeft, aRight, bLeft, bRight ) :

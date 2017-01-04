@@ -12,16 +12,9 @@ class NodeHandler :
 	def __nonzero__( self ) :
 		return bool( self.queue )
 
-	def Add( self, eqLeft, eqRight, dist ) :
-		if (eqLeft, eqRight, dist) in self.expanded :
-			return
-		if (eqRight, eqLeft, dist) in self.expanded :
-			return
-		if (eqLeft, eqRight, dist) in self.queue :
-			return
-		if (eqRight, eqLeft, dist) in self.queue :
-			return
-		self.queue.add( (eqLeft, eqRight, dist) )
+	def Add( self, eqLeft, eqRight, dist, path ) :
+		if self.Unseen( eqLeft, eqRight, dist ) :
+			self.queue.add( (eqLeft, eqRight, dist, path) )
 
 	def Pop( self ) :
 		if self.queue :
@@ -32,3 +25,16 @@ class NodeHandler :
 			return temp
 		else :
 			return None
+
+	def Unseen(self, eqLeft, eqRight, dist ) :
+		if any( [ x for x in self.expanded
+				  if eqRight == x[0] and eqLeft == x[1]
+				  or eqRight == x[1] and eqLeft == x[0] ] ) :
+			return False
+
+		if any( [ x for x in self.queue
+				  if eqRight == x[0] and eqLeft == x[1]
+				  or eqRight == x[1] and eqLeft == x[0] ] ) :
+			return False
+
+		return True
