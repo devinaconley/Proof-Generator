@@ -12,7 +12,7 @@ class ProofGenerator :
 	def __init__( self, given, prove ) :
 		# Operators and modifiers of interest
 		self.operators = [sympy.Mul, sympy.Add]  # , sympy.Pow]
-		self.modifiers = [sympy.sin, sympy.cos, sympy.exp]
+		self.modifiers = [sympy.sin, sympy.cos]  # , sympy.exp]
 
 		print( 'Proof Generator initialized...' )
 
@@ -27,16 +27,20 @@ class ProofGenerator :
 		self.proveRight = parse_expr( sProveRight, evaluate=False )
 		print( 'Prove: ', self.proveLeft, ' = ', self.proveRight )
 
-
 		# Setup full set of possible symbols
-		symbolsOrig = (self.givenLeft.free_symbols | self.givenRight.free_symbols
+		symbolsTemp = (self.givenLeft.free_symbols | self.givenRight.free_symbols
 					   | self.proveLeft.free_symbols | self.proveRight.free_symbols)
-
 		self.symbols = []
-		self.symbols.extend( symbolsOrig )
+		self.symbols.extend( symbolsTemp )
 		for m in self.modifiers :
-			for s in symbolsOrig :
+			for s in symbolsTemp :
 				self.symbols.append( m( s ) )
+
+		symbolsTemp = self.symbols[:]
+
+		for s in symbolsTemp :
+			self.symbols.append( sympy.Pow( s, -1 ) )
+			self.symbols.append( sympy.Mul( -1, s, ) )
 
 		# Setup node handler
 		self.handler = NodeHandler( )
@@ -55,7 +59,8 @@ class ProofGenerator :
 			path.append( (currL, currR) )
 
 			k += 1
-			print( '\rNodes expanded: {} ==> {} = {}'.format( k, str( currL ), str( currR ) ), end='' )
+			print( '\rNodes expanded: {} ==> {} = {}\t[Est. Dist. {}]'.format(
+				k, str( currL ), str( currR ), currDist ), end='' )
 			# print currL ' = ', currR, '... Estim. Dist: ', currDist, '\r',
 			if ((currL == self.proveLeft and currR == self.proveRight)
 				or (currL == self.proveRight and currR == self.proveLeft)) :
@@ -78,14 +83,13 @@ class ProofGenerator :
 					tempDist = self.Distance( tempL, tempR, self.proveLeft, self.proveRight )
 					self.handler.Add( tempL, tempR, tempDist, path )
 
-
 	def PrintPath( self, path ) :
-		print( '******************************************************')
-		print( 'PROOF: ')
-		while ( path ) :
-			temp = path.pop(0)
-			print( '\t', temp[0], ' = ', temp[1] )
-		print( '******************************************************')
+		print( '******************************************************' )
+		print( 'PROOF: ' )
+		while (path) :
+			temp = path.pop( 0 )
+			print( '\t', str(temp[0]), ' = ', str(temp[1]) )
+		print( '******************************************************' )
 
 	# Need some distance metric to implement a priority queue
 	def Distance( self, aLeft, aRight, bLeft, bRight ) :
@@ -125,7 +129,11 @@ class ProofGenerator :
 			tokens.append( str( expr ) )
 		# Add func if only modifier
 		elif len( args ) == 1 :
-			tokens.append( str( expr.func ) )
+			if args[0].args :
+				tokens.append( str( expr.func ) )
+			else :
+				tokens.append(str( expr ) )
+				return tokens
 		# Append terms to decompose power
 		elif expr.func == sympy.Pow and args[1] > 0 :
 			# print 'Power!', expr, expr.func, args[0], args[1]

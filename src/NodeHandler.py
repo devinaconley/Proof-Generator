@@ -4,7 +4,7 @@ from sortedcontainers import SortedListWithKey
 
 class NodeHandler :
 	def __init__( self ) :
-		self.expanded = SortedListWithKey( key=lambda node: node[2] )
+		self.expanded = SortedListWithKey( key=lambda node : node[2] )
 		self.queue = SortedListWithKey( key=lambda node : node[2] )
 		self.currPathLeft = []
 		self.currPathRight = []
@@ -18,7 +18,7 @@ class NodeHandler :
 
 	def Pop( self ) :
 		if self.queue :
-			temp = self.queue.pop(0)
+			temp = self.queue.pop( 0 )
 			if temp in self.expanded :
 				return self.Pop( )
 			self.expanded.add( temp )  # Assumes exploration on pop
@@ -26,15 +26,15 @@ class NodeHandler :
 		else :
 			return None
 
-	def Unseen(self, eqLeft, eqRight, dist ) :
-		if any( [ x for x in self.expanded
-				  if eqRight == x[0] and eqLeft == x[1]
-				  or eqRight == x[1] and eqLeft == x[0] ] ) :
+	def Unseen( self, eqLeft, eqRight, dist ) :
+		if any( [x for x in self.expanded
+				 if ((eqRight == x[0] and eqLeft == x[1])
+					 or (eqRight == x[1] and eqLeft == x[0]))] ) :
 			return False
 
-		if any( [ x for x in self.queue
-				  if eqRight == x[0] and eqLeft == x[1]
-				  or eqRight == x[1] and eqLeft == x[0] ] ) :
+		if any( [x for x in self.queue
+				 if ((eqRight == x[0] and eqLeft == x[1])
+					 or (eqRight == x[1] and eqLeft == x[0]))] ) :
 			return False
 
 		return True
