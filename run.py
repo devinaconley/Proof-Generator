@@ -22,9 +22,9 @@ def ParseArguments( ) :
 	# Define arguments
 	parser = argparse.ArgumentParser( )
 	parser.add_argument( '-g', '--given', help='Given or starting statement',
-						 default='sin(x)/cos(x) + cos(x)/sin(x) = y/( cos(x) * sin(x) )' )
+						 default='sin(x)/cos(x) + cos(x)/sin(x) + z/( sin(x) * cos(x) ) = y/( cos(x) * sin(x) )' )
 	parser.add_argument( '-p', '--prove', help='Statement to prove',
-						 default='y = 1' )
+						 default='y - z = 1' )
 
 	# Parse arguments and return
 	args = vars( parser.parse_args( ) )

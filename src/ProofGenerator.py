@@ -61,9 +61,8 @@ class ProofGenerator :
 			k += 1
 			print( '\rNodes expanded: {} ==> {} = {}\t[Est. Dist. {}]'.format(
 				k, str( currL ), str( currR ), currDist ), end='' )
-			# print currL ' = ', currR, '... Estim. Dist: ', currDist, '\r',
-			if ((currL == self.proveLeft and currR == self.proveRight)
-				or (currL == self.proveRight and currR == self.proveLeft)) :
+
+			if currDist == 0 : # (Keep an eye on this for false positive solution)
 				print( )
 				self.PrintPath( path )
 				break
@@ -88,7 +87,7 @@ class ProofGenerator :
 		print( 'PROOF: ' )
 		while (path) :
 			temp = path.pop( 0 )
-			print( '\t', str(temp[0]), ' = ', str(temp[1]) )
+			print( '\t', str( temp[0] ), ' = ', str( temp[1] ) )
 		print( '******************************************************' )
 
 	# Need some distance metric to implement a priority queue
@@ -103,10 +102,10 @@ class ProofGenerator :
 		bLeftCounter = Counter( bLeftTokens )
 		bRightCounter = Counter( bRightTokens )
 
-		aMaxCoeff = max(
-			[float( x ) for x in aLeftCounter.elements( ) and aRightCounter.elements( ) if x.isdigit( )] or [1] )
-		bMaxCoeff = max(
-			[float( x ) for x in bLeftCounter.elements( ) and bRightCounter.elements( ) if x.isdigit( )] or [1] )
+		aMaxCoeff = max( [abs( float( x ) ) for x in aLeftCounter.elements( ) and aRightCounter.elements( )
+						  if self.ValidFloat( x )] or [1] )
+		bMaxCoeff = max( [abs( float( x ) ) for x in bLeftCounter.elements( ) and bRightCounter.elements( )
+						  if self.ValidFloat( x )] or [1] )
 
 		# compare left vs left, right vs right
 		dist1 = (sum( (aLeftCounter - bLeftCounter).values( ) ) + sum( (bLeftCounter - aLeftCounter).values( ) )
@@ -132,7 +131,7 @@ class ProofGenerator :
 			if args[0].args :
 				tokens.append( str( expr.func ) )
 			else :
-				tokens.append(str( expr ) )
+				tokens.append( str( expr ) )
 				return tokens
 		# Append terms to decompose power
 		elif expr.func == sympy.Pow and args[1] > 0 :
@@ -146,3 +145,10 @@ class ProofGenerator :
 			else :
 				tokens.append( str( a ) )
 		return tokens
+
+	def ValidFloat( self, x ) :
+		try :
+			float( x )
+		except :
+			return False
+		return True
